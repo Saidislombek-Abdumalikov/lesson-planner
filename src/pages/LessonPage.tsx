@@ -14,7 +14,12 @@ import {
   Loader2,
   Clock,
   Plus,
-  CheckCircle2
+  CheckCircle2,
+  History,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { Group, Lesson, LessonFile, PrintItem } from '../types';
 import { 
@@ -30,14 +35,15 @@ import {
   getPrintItemsForLesson, 
   addPrintItem, 
   updatePrintItem, 
-  deletePrintItem 
+  deletePrintItem,
+  getPreviousLesson
 } from '../db/db';
 import { FileUploader } from '../components/lessons/FileUploader';
 import { PrintListManager } from '../components/lessons/PrintListManager';
 import { DuplicateModal } from '../components/lessons/DuplicateModal';
 import { PrintViewModal } from '../components/print/PrintViewModal';
 import { ConfirmModal } from '../components/layout/ConfirmModal';
-import { formatFullDayDate } from '../utils/formatters';
+import { formatFullDayDate, downloadBlob, previewBlob } from '../utils/formatters';
 
 interface LessonPageProps {
   lessonId: string;
@@ -62,6 +68,10 @@ export const LessonPage: React.FC<LessonPageProps> = ({
   const [lessonPlan, setLessonPlan] = useState('');
   const [homework, setHomework] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Previous Lesson Context
+  const [prevLessonData, setPrevLessonData] = useState<{ lesson: Lesson; homeworkFiles: LessonFile[] } | null>(null);
+  const [isPrevHwExpanded, setIsPrevHwExpanded] = useState(true);
 
   // Autosave Status: 'idle' | 'saving' | 'saved' | 'error'
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('saved');
@@ -90,14 +100,16 @@ export const LessonPage: React.FC<LessonPageProps> = ({
         setHomework(l.homework);
         setNotes(l.notes || '');
 
-        const [g, fList, pList] = await Promise.all([
+        const [g, fList, pList, prevData] = await Promise.all([
           getGroup(l.groupId),
           getFilesForLesson(l.id),
           getPrintItemsForLesson(l.id),
+          getPreviousLesson(l.groupId, l.date, l.id),
         ]);
         setGroup(g || null);
         setFiles(fList);
         setPrintItems(pList);
+        setPrevLessonData(prevData);
       }
     } finally {
       setLoading(false);
@@ -108,6 +120,15 @@ export const LessonPage: React.FC<LessonPageProps> = ({
     isInitialMount.current = true;
     loadLessonData();
   }, [lessonId]);
+
+  // When date changes, refresh the previous lesson context
+  useEffect(() => {
+    if (lesson && date) {
+      getPreviousLesson(lesson.groupId, date, lesson.id).then(prev => {
+        setPrevLessonData(prev);
+      });
+    }
+  }, [date, lesson?.groupId, lesson?.id]);
 
   // Trigger Save Toast
   const triggerSaveNotification = () => {
@@ -512,6 +533,20 @@ export const LessonPage: React.FC<LessonPageProps> = ({
             {/* Quick-Insert Outline Chips */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
               <span className="text-slate-400 text-[11px] font-medium hidden sm:inline">Quick Insert:</span>
+              
+              {/* Insert Previous Homework Check Review Chip */}
+              {prevLessonData?.lesson.homework && (
+                <button
+                  type="button"
+                  onClick={() => handleInsertTemplate(`• Check HW (${formatFullDayDate(prevLessonData.lesson.date)}): ${prevLessonData.lesson.homework}`)}
+                  className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 rounded-md font-semibold transition-colors flex items-center gap-1 flex-shrink-0"
+                  title="Insert previous homework review reminder into lesson plan"
+                >
+                  <History className="w-3 h-3" />
+                  <span>+ Check Prev HW</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => handleInsertTemplate('• Warm-up (5m): ')}
@@ -560,9 +595,9 @@ export const LessonPage: React.FC<LessonPageProps> = ({
         </section>
       )}
 
-      {/* SECTION 2: HOMEWORK */}
+      {/* SECTION 2: HOMEWORK (WITH PREVIOUS LESSON HW VISIBILITY) */}
       {(activeTab === 'all' || activeTab === 'homework') && (
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-3">
+        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <CheckSquare className="w-4 h-4" />
@@ -572,13 +607,144 @@ export const LessonPage: React.FC<LessonPageProps> = ({
             </h2>
           </div>
 
-          <textarea
-            rows={3}
-            value={homework}
-            onChange={e => setHomework(e.target.value)}
-            placeholder="e.g. Workbook pages 24–25, exercises 1–5. Learn new vocabulary for quick test next time."
-            className="w-full p-4 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-sm leading-relaxed text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-sans resize-y"
-          />
+          {/* PREVIOUS LESSON HOMEWORK CARD */}
+          {prevLessonData ? (
+            (prevLessonData.lesson.homework || prevLessonData.homeworkFiles.length > 0) ? (
+              <div className="bg-emerald-50/60 dark:bg-emerald-950/25 border border-emerald-200/80 dark:border-emerald-900/60 rounded-xl p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-white flex items-center gap-1 shadow-2xs">
+                      <History className="w-3 h-3" />
+                      <span>Previous Lesson HW</span>
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      {prevLessonData.lesson.title}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      • {formatFullDayDate(prevLessonData.lesson.date)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Quick Insert to Lesson Plan button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const snippet = `• Check HW (${formatFullDayDate(prevLessonData.lesson.date)}): ${prevLessonData.lesson.homework || 'Review assigned task'}`;
+                        handleInsertTemplate(snippet);
+                      }}
+                      className="px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-white dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 transition-all active:scale-95 shadow-2xs"
+                      title="Insert HW checking reminder into current lesson plan"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add Check to Plan</span>
+                    </button>
+
+                    {/* Copy to Current Homework button */}
+                    {prevLessonData.lesson.homework && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHomework(prev => prev ? `${prev}\n${prevLessonData.lesson.homework}` : prevLessonData.lesson.homework);
+                        }}
+                        className="px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center gap-1 transition-all active:scale-95"
+                        title="Copy previous homework text into current homework"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setIsPrevHwExpanded(!isPrevHwExpanded)}
+                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded"
+                      title={isPrevHwExpanded ? 'Collapse' : 'Expand'}
+                    >
+                      {isPrevHwExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {isPrevHwExpanded && (
+                  <div className="space-y-2 pt-0.5 animate-in fade-in duration-150">
+                    {prevLessonData.lesson.homework ? (
+                      <div className="p-3 bg-white/90 dark:bg-slate-900/80 border border-emerald-100/80 dark:border-emerald-900/40 rounded-lg text-xs sm:text-sm text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+                        {prevLessonData.lesson.homework}
+                      </div>
+                    ) : null}
+
+                    {/* Previous Lesson Homework Files */}
+                    {prevLessonData.homeworkFiles.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap pt-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                          <Paperclip className="w-3 h-3" />
+                          <span>Previous HW Materials ({prevLessonData.homeworkFiles.length}):</span>
+                        </span>
+                        {prevLessonData.homeworkFiles.map(f => (
+                          <div
+                            key={f.id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-300 shadow-2xs"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => previewBlob(f.data)}
+                              className="font-semibold hover:underline truncate max-w-[160px]"
+                              title={`Open ${f.name}`}
+                            >
+                              {f.name}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => previewBlob(f.data)}
+                              className="opacity-75 hover:opacity-100 p-0.5"
+                              title="Open in new tab"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => downloadBlob(f.data, f.originalName || f.name)}
+                              className="opacity-75 hover:opacity-100 p-0.5"
+                              title="Download"
+                            >
+                              <Download className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 bg-slate-50/70 dark:bg-slate-800/30 border border-slate-200/70 dark:border-slate-800 rounded-xl text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <History className="w-3.5 h-3.5 text-slate-400" />
+                <span>
+                  Previous lesson (<strong>{prevLessonData.lesson.title}</strong> • {formatFullDayDate(prevLessonData.lesson.date)}): No homework was assigned.
+                </span>
+              </div>
+            )
+          ) : (
+            <div className="p-3 bg-slate-50/70 dark:bg-slate-800/30 border border-slate-200/70 dark:border-slate-800 rounded-xl text-xs text-slate-400 dark:text-slate-500 flex items-center gap-2">
+              <History className="w-3.5 h-3.5 text-slate-400" />
+              <span>First lesson for {group?.name || 'this group'} — no previous homework recorded.</span>
+            </div>
+          )}
+
+          {/* Current Lesson Homework Input */}
+          <div className="space-y-1.5 pt-1">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              New Homework For This Lesson
+            </label>
+            <textarea
+              rows={3}
+              value={homework}
+              onChange={e => setHomework(e.target.value)}
+              placeholder="e.g. Workbook pages 24–25, exercises 1–5. Learn new vocabulary for quick test next time."
+              className="w-full p-4 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-sm leading-relaxed text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-sans resize-y"
+            />
+          </div>
         </section>
       )}
 

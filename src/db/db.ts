@@ -133,6 +133,50 @@ export async function deleteLesson(lessonId: string): Promise<void> {
   });
 }
 
+export async function getPreviousLesson(
+  groupId: string,
+  currentDate: string,
+  currentLessonId?: string
+): Promise<{ lesson: Lesson; homeworkFiles: LessonFile[] } | null> {
+  const lessons = await db.lessons.where('groupId').equals(groupId).toArray();
+  if (lessons.length === 0) return null;
+
+  // Sort chronologically ascending by date, then createdAt
+  lessons.sort((a, b) => {
+    const cmp = a.date.localeCompare(b.date);
+    if (cmp !== 0) return cmp;
+    return (a.createdAt || '').localeCompare(b.createdAt || '');
+  });
+
+  let prev: Lesson | undefined;
+  if (currentLessonId) {
+    const currentIndex = lessons.findIndex(l => l.id === currentLessonId);
+    if (currentIndex > 0) {
+      prev = lessons[currentIndex - 1];
+    } else if (currentIndex === -1) {
+      // If current lesson isn't in DB yet, find latest strictly before or on currentDate
+      const earlier = lessons.filter(l => l.date <= currentDate);
+      prev = earlier[earlier.length - 1];
+    }
+  } else {
+    const earlier = lessons.filter(l => l.date <= currentDate);
+    prev = earlier[earlier.length - 1];
+  }
+
+  if (!prev) return null;
+
+  const homeworkFiles = await db.files
+    .where('lessonId')
+    .equals(prev.id)
+    .filter(f => f.category === 'homework')
+    .toArray();
+
+  return {
+    lesson: prev,
+    homeworkFiles,
+  };
+}
+
 export async function duplicateLesson(
   sourceLessonId: string,
   targetDate: string,
