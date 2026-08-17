@@ -9,7 +9,8 @@ import {
   RotateCw,
   FileText,
   Music,
-  Video
+  Video,
+  Eye
 } from 'lucide-react';
 import { LessonFile } from '../../types';
 import { formatBytes, getFileTypeCategory, downloadBlob, previewBlob } from '../../utils/formatters';
@@ -31,6 +32,17 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const [textContent, setTextContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isOpen && e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     if (isOpen && file && file.data) {
       setIsLoading(true);
@@ -41,7 +53,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
       const url = URL.createObjectURL(file.data);
       setObjectUrl(url);
 
-      const isText = file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.md');
+      const isText = file.type?.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.md');
       if (isText) {
         file.data.text().then(txt => {
           setTextContent(txt);
@@ -75,23 +87,26 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 25, 50));
   const handleRotate = () => setRotation(prev => (prev + 90) % 360);
 
-  const handlePrint = () => {
-    if (file.data) {
-      previewBlob(file.data);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/80 dark:bg-black/85 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={onClose}
+    >
       <div 
-        className="w-full max-w-5xl h-[90vh] max-h-[850px] bg-slate-900 text-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-800"
+        className="w-full max-w-5xl h-[92vh] max-h-[860px] bg-slate-900 text-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-800 animate-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
         {/* Header Toolbar */}
-        <div className="px-4 py-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 flex-shrink-0">
+        <div className="px-4 py-3 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className={`p-1.5 rounded-lg ${typeInfo.bgDark} flex-shrink-0`}>
-              {isAudio ? <Music className="w-4 h-4 text-fuchsia-400" /> : isVideo ? <Video className="w-4 h-4 text-rose-400" /> : <FileText className="w-4 h-4 text-brand-400" />}
+              {isAudio ? (
+                <Music className="w-4 h-4 text-fuchsia-400" />
+              ) : isVideo ? (
+                <Video className="w-4 h-4 text-rose-400" />
+              ) : (
+                <FileText className="w-4 h-4 text-brand-400" />
+              )}
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold truncate text-slate-100" title={file.name}>
@@ -139,29 +154,22 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
             {file.data && (
               <>
-                <button
-                  type="button"
-                  onClick={handlePrint}
-                  className="p-1.5 text-slate-400 hover:text-purple-300 hover:bg-slate-800 rounded-lg transition-colors"
-                  title="Print File"
-                >
-                  <Printer className="w-4 h-4" />
-                </button>
-
+                {/* Try Open in Browser Tab (if supported by environment) */}
                 <button
                   type="button"
                   onClick={() => previewBlob(file.data)}
                   className="p-1.5 text-slate-400 hover:text-brand-300 hover:bg-slate-800 rounded-lg transition-colors"
-                  title="Open in new tab"
+                  title="Open in external browser window"
                 >
                   <ExternalLink className="w-4 h-4" />
                 </button>
 
+                {/* Direct Download */}
                 <button
                   type="button"
                   onClick={() => downloadBlob(file.data, file.originalName || file.name)}
                   className="px-3 py-1.5 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
-                  title="Download"
+                  title="Download File"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Download</span>
@@ -173,7 +181,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
               type="button"
               onClick={onClose}
               className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ml-1"
-              title="Close Preview"
+              title="Close Preview (Esc)"
             >
               <X className="w-5 h-5" />
             </button>
@@ -181,7 +189,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-auto bg-slate-950/60 p-4 flex items-center justify-center relative">
+        <div className="flex-1 overflow-auto bg-slate-950/60 p-2 sm:p-4 flex items-center justify-center relative">
           {isLoading && (
             <div className="text-center text-xs text-slate-400 animate-pulse">
               Loading preview...
@@ -189,7 +197,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           )}
 
           {!isLoading && isImage && objectUrl && (
-            <div className="max-w-full max-h-full flex items-center justify-center p-2">
+            <div className="max-w-full max-h-full flex items-center justify-center p-2 overflow-auto">
               <img
                 src={objectUrl}
                 alt={file.name}
@@ -209,28 +217,28 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             <iframe
               src={`${objectUrl}#toolbar=1&navpanes=0`}
               title={file.name}
-              className="w-full h-full rounded-lg border border-slate-800 bg-white"
+              className="w-full h-full rounded-xl border border-slate-800 bg-white"
             />
           )}
 
           {!isLoading && isAudio && objectUrl && (
-            <div className="p-8 text-center space-y-4 max-w-md">
+            <div className="p-8 text-center space-y-4 max-w-md bg-slate-900 rounded-2xl border border-slate-800">
               <div className="w-16 h-16 rounded-full bg-fuchsia-950/60 text-fuchsia-400 flex items-center justify-center mx-auto">
                 <Music className="w-8 h-8" />
               </div>
-              <h4 className="text-base font-bold text-white">{file.name}</h4>
+              <h4 className="text-base font-bold text-white truncate">{file.name}</h4>
               <audio src={objectUrl} controls className="w-full" autoPlay />
             </div>
           )}
 
           {!isLoading && isVideo && objectUrl && (
             <div className="max-w-full max-h-full flex items-center justify-center">
-              <video src={objectUrl} controls className="max-h-[70vh] rounded-lg shadow-lg" autoPlay />
+              <video src={objectUrl} controls className="max-h-[72vh] rounded-xl shadow-lg" autoPlay />
             </div>
           )}
 
           {!isLoading && textContent !== null && (
-            <pre className="w-full h-full p-4 font-mono text-xs text-slate-200 bg-slate-900 rounded-lg overflow-auto whitespace-pre-wrap">
+            <pre className="w-full h-full p-4 font-mono text-xs text-slate-200 bg-slate-900 rounded-xl overflow-auto whitespace-pre-wrap">
               {textContent}
             </pre>
           )}
@@ -250,7 +258,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                 <button
                   type="button"
                   onClick={() => downloadBlob(file.data, file.originalName || file.name)}
-                  className="w-full px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-lg flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl flex items-center justify-center gap-2"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download File ({formatBytes(file.size)})</span>

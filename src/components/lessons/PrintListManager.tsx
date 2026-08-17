@@ -5,14 +5,16 @@ import {
   Trash2, 
   Check, 
   Minus, 
-  ExternalLink,
-  Download,
-  BookOpen,
-  Home
+  ExternalLink, 
+  Download, 
+  BookOpen, 
+  Home,
+  Eye
 } from 'lucide-react';
 import { LessonFile, PrintItem } from '../../types';
 import { downloadBlob, previewBlob } from '../../utils/formatters';
 import { ConfirmModal } from '../layout/ConfirmModal';
+import { FilePreviewModal } from '../files/FilePreviewModal';
 
 interface PrintListManagerProps {
   printItems: PrintItem[];
@@ -40,6 +42,9 @@ export const PrintListManager: React.FC<PrintListManagerProps> = ({
 
   // Confirmation state for deleting a print item
   const [itemToDelete, setItemToDelete] = useState<PrintItem | null>(null);
+
+  // File preview modal state
+  const [previewFile, setPreviewFile] = useState<LessonFile | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,11 +135,11 @@ export const PrintListManager: React.FC<PrintListManagerProps> = ({
               {matched ? (
                 <button
                   type="button"
-                  onClick={() => previewBlob(matched.data)}
+                  onClick={() => setPreviewFile(matched)}
                   className={`text-sm font-semibold truncate hover:underline text-left text-brand-600 dark:text-brand-400 ${
                     item.isPrinted ? 'line-through text-slate-400' : ''
                   }`}
-                  title="Click to open file in new tab"
+                  title="Click to preview file"
                 >
                   {item.fileName}
                 </button>
@@ -173,17 +178,17 @@ export const PrintListManager: React.FC<PrintListManagerProps> = ({
           </div>
         </div>
 
-        {/* Right: Open in Tab / Download + Copies Stepper + Delete */}
+        {/* Right: Open Preview / Download + Copies Stepper + Delete */}
         <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
           {matched && (
             <div className="flex items-center gap-1 mr-1">
               <button
                 type="button"
-                onClick={() => previewBlob(matched.data)}
-                className="p-1.5 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                title="Open file in new tab"
+                onClick={() => setPreviewFile(matched)}
+                className="p-1.5 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1"
+                title="Preview file"
               >
-                <ExternalLink className="w-4 h-4" />
+                <Eye className="w-4 h-4" />
               </button>
               <button
                 type="button"
@@ -451,6 +456,13 @@ export const PrintListManager: React.FC<PrintListManagerProps> = ({
           )}
         </div>
       )}
+
+      {/* In-App File Preview Modal */}
+      <FilePreviewModal
+        isOpen={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal

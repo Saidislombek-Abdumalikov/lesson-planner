@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, X, Check, FileText, Download, ExternalLink, BookOpen, Home } from 'lucide-react';
+import { Printer, X, Check, FileText, Download, ExternalLink, BookOpen, Home, Eye } from 'lucide-react';
 import { Group, Lesson, PrintItem, LessonFile } from '../../types';
 import { db } from '../../db/db';
 import { formatFullDayDate, downloadBlob, previewBlob } from '../../utils/formatters';
+import { FilePreviewModal } from '../files/FilePreviewModal';
 
 interface PrintViewModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const PrintViewModal: React.FC<PrintViewModalProps> = ({
   const [group, setGroup] = useState<Group | null>(null);
   const [items, setItems] = useState<PrintItem[]>([]);
   const [files, setFiles] = useState<LessonFile[]>([]);
+  const [previewFile, setPreviewFile] = useState<LessonFile | null>(null);
 
   useEffect(() => {
     if (isOpen && lessonId) {
@@ -86,7 +88,7 @@ export const PrintViewModal: React.FC<PrintViewModalProps> = ({
               <th className="py-2 px-3">File / Handout</th>
               <th className="py-2 px-3 text-right w-24">Copies</th>
               <th className="py-2 px-3">Printing Notes</th>
-              <th className="py-2 px-3 text-right w-24 no-print">Open File</th>
+              <th className="py-2 px-3 text-right w-24 no-print">Preview</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -119,9 +121,9 @@ export const PrintViewModal: React.FC<PrintViewModalProps> = ({
                       {matched ? (
                         <button
                           type="button"
-                          onClick={() => previewBlob(matched.data)}
+                          onClick={() => setPreviewFile(matched)}
                           className="text-left font-semibold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
-                          title="Click to open file in new tab"
+                          title="Click to preview file"
                         >
                           <span>{item.fileName}</span>
                         </button>
@@ -141,11 +143,11 @@ export const PrintViewModal: React.FC<PrintViewModalProps> = ({
                       <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
-                          onClick={() => previewBlob(matched.data)}
+                          onClick={() => setPreviewFile(matched)}
                           className="p-1 text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-                          title="Open in new tab"
+                          title="Preview file"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </button>
                         <button
                           type="button"
@@ -277,6 +279,13 @@ export const PrintViewModal: React.FC<PrintViewModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        isOpen={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
     </div>
   );
 };

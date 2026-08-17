@@ -15,11 +15,13 @@ import {
   Music,
   Video,
   BookOpen,
-  Home
+  Home,
+  Eye
 } from 'lucide-react';
 import { Lesson, LessonFile, PrintItem } from '../../types';
 import { db } from '../../db/db';
 import { formatFullDayDate, getRelativeDateBadge, formatBytes, downloadBlob, previewBlob, getFileTypeCategory } from '../../utils/formatters';
+import { FilePreviewModal } from '../files/FilePreviewModal';
 
 interface LessonTimelineItemProps {
   lesson: Lesson;
@@ -41,6 +43,7 @@ export const LessonTimelineItem: React.FC<LessonTimelineItemProps> = ({
   const [files, setFiles] = useState<LessonFile[]>([]);
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
   const [isExpanded, setIsExpanded] = useState(isInitiallyExpanded);
+  const [previewFile, setPreviewFile] = useState<LessonFile | null>(null);
 
   useEffect(() => {
     setIsExpanded(isInitiallyExpanded);
@@ -70,8 +73,6 @@ export const LessonTimelineItem: React.FC<LessonTimelineItemProps> = ({
   const homeworkPrints = printItems.filter(it => it.category === 'homework');
 
   const totalPrintCopies = printItems.reduce((acc, item) => acc + (item.copies || 0), 0);
-  const classworkCopies = classworkPrints.reduce((acc, item) => acc + (item.copies || 0), 0);
-  const homeworkCopies = homeworkPrints.reduce((acc, item) => acc + (item.copies || 0), 0);
 
   // Parse plan into clean lines
   const planLines = (lesson.lessonPlan || '')
@@ -100,23 +101,23 @@ export const LessonTimelineItem: React.FC<LessonTimelineItemProps> = ({
       >
         <button
           type="button"
-          onClick={() => previewBlob(f.data)}
+          onClick={() => setPreviewFile(f)}
           className="font-semibold hover:underline truncate max-w-[160px] sm:max-w-[240px] text-left"
-          title={f.name}
+          title={`Click to preview ${f.name}`}
         >
           {f.name}
         </button>
 
         <span className="text-[10px] opacity-75 font-normal">({formatBytes(f.size)})</span>
 
-        {/* Open in new tab */}
+        {/* Open in preview */}
         <button
           type="button"
-          onClick={() => previewBlob(f.data)}
+          onClick={() => setPreviewFile(f)}
           className="hover:opacity-100 opacity-75 p-0.5 rounded transition-colors"
-          title="Open in new tab"
+          title="Preview file"
         >
-          <ExternalLink className="w-3.5 h-3.5" />
+          <Eye className="w-3.5 h-3.5" />
         </button>
 
         {/* Download */}
@@ -410,6 +411,13 @@ export const LessonTimelineItem: React.FC<LessonTimelineItemProps> = ({
           </div>
         )}
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        isOpen={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
     </div>
   );
 };

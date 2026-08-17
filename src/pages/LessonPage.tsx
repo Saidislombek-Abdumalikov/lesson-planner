@@ -11,15 +11,16 @@ import {
   Paperclip, 
   Sparkles, 
   Check, 
-  Loader2,
-  Clock,
-  Plus,
-  CheckCircle2,
-  History,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Download
+  Loader2, 
+  Clock, 
+  Plus, 
+  CheckCircle2, 
+  History, 
+  ChevronDown, 
+  ChevronUp, 
+  ExternalLink, 
+  Download,
+  Eye
 } from 'lucide-react';
 import { Group, Lesson, LessonFile, PrintItem } from '../types';
 import { 
@@ -43,6 +44,7 @@ import { PrintListManager } from '../components/lessons/PrintListManager';
 import { DuplicateModal } from '../components/lessons/DuplicateModal';
 import { PrintViewModal } from '../components/print/PrintViewModal';
 import { ConfirmModal } from '../components/layout/ConfirmModal';
+import { FilePreviewModal } from '../components/files/FilePreviewModal';
 import { formatFullDayDate, downloadBlob, previewBlob } from '../utils/formatters';
 
 interface LessonPageProps {
@@ -85,6 +87,7 @@ export const LessonPage: React.FC<LessonPageProps> = ({
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<LessonFile | null>(null);
 
   // Active section tab for mobile navigation or quick jump
   const [activeTab, setActiveTab] = useState<'all' | 'plan' | 'homework' | 'files' | 'print' | 'notes'>('all');
@@ -688,19 +691,19 @@ export const LessonPage: React.FC<LessonPageProps> = ({
                           >
                             <button
                               type="button"
-                              onClick={() => previewBlob(f.data)}
-                              className="font-semibold hover:underline truncate max-w-[160px]"
-                              title={`Open ${f.name}`}
+                              onClick={() => setPreviewFile(f)}
+                              className="font-semibold hover:underline truncate max-w-[160px] text-left"
+                              title={`Preview ${f.name}`}
                             >
                               {f.name}
                             </button>
                             <button
                               type="button"
-                              onClick={() => previewBlob(f.data)}
+                              onClick={() => setPreviewFile(f)}
                               className="opacity-75 hover:opacity-100 p-0.5"
-                              title="Open in new tab"
+                              title="Preview file"
                             >
-                              <ExternalLink className="w-3 h-3" />
+                              <Eye className="w-3 h-3" />
                             </button>
                             <button
                               type="button"
@@ -883,6 +886,13 @@ export const LessonPage: React.FC<LessonPageProps> = ({
         isDestructive={true}
         onConfirm={handleConfirmDelete}
         onCancel={() => setIsDeleteOpen(false)}
+      />
+
+      {/* In-App File Preview Modal */}
+      <FilePreviewModal
+        isOpen={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
       />
     </div>
   );

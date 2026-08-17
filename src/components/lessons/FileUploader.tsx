@@ -14,7 +14,8 @@ import {
   Check, 
   X,
   BookOpen,
-  Home
+  Home,
+  Eye
 } from 'lucide-react';
 import { LessonFile } from '../../types';
 import { 
@@ -24,6 +25,7 @@ import {
   previewBlob 
 } from '../../utils/formatters';
 import { ConfirmModal } from '../layout/ConfirmModal';
+import { FilePreviewModal } from '../files/FilePreviewModal';
 
 interface FileUploaderProps {
   files: LessonFile[];
@@ -51,6 +53,9 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
 
   // Delete confirmation state
   const [fileToDelete, setFileToDelete] = useState<LessonFile | null>(null);
+
+  // File preview modal state
+  const [previewFile, setPreviewFile] = useState<LessonFile | null>(null);
 
   // Audio playing state
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
@@ -139,7 +144,11 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
       >
         {/* Left Side: Icon & Name / Audio Player / Edit Name */}
         <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-          <div className={`w-9 h-9 rounded-lg ${typeInfo.bgLight} ${typeInfo.bgDark} flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0`}>
+          <div 
+            onClick={() => setPreviewFile(file)}
+            className={`w-9 h-9 rounded-lg ${typeInfo.bgLight} ${typeInfo.bgDark} flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0 cursor-pointer hover:scale-105 transition-transform`}
+            title="Click to preview file"
+          >
             {renderFileIcon(file)}
           </div>
 
@@ -176,9 +185,9 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => previewBlob(file.data)}
+                  onClick={() => setPreviewFile(file)}
                   className="text-sm font-semibold text-slate-800 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 transition-colors truncate text-left"
-                  title="Open file in new tab"
+                  title="Click to preview file"
                 >
                   {file.name}
                 </button>
@@ -253,14 +262,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
             </button>
           )}
 
-          {/* Open File in New Tab */}
+          {/* Open Preview Modal */}
           <button
             type="button"
-            onClick={() => previewBlob(file.data)}
-            className="p-1.5 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            title="Open file in new tab"
+            onClick={() => setPreviewFile(file)}
+            className="p-1.5 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1"
+            title="Preview file"
           >
-            <ExternalLink className="w-4 h-4" />
+            <Eye className="w-4 h-4" />
           </button>
 
           {/* Download */}
@@ -416,6 +425,13 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
           )}
         </div>
       </div>
+
+      {/* In-App File Preview Modal (Works 100% in Desktop PWA, Chrome, mobile) */}
+      <FilePreviewModal
+        isOpen={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
 
       {/* Delete File Confirmation Modal */}
       <ConfirmModal
