@@ -76,3 +76,32 @@
     display: none !important;
   }
 }
+
+/* Word DOCX In-App Previewer Styling */
+.docx-preview-wrapper .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.docx-preview-wrapper section.docx {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  margin-bottom: 24px !important;
+  border-radius: 8px !important;
+  padding: 40px !important;
+  max-width: 100% !important;
+}
+
+.docx-preview-wrapper table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.docx-preview-wrapper table td,
+.docx-preview-wrapper table th {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+}
+
